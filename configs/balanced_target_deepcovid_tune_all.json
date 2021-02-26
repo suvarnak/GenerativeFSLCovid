@@ -1,0 +1,29 @@
+{
+    "exp_name": "exp_balanced_finetune_deepcovid",
+    "agent": "FSLDiscriminatorAgent",
+    "mode": "train",
+    "cuda": true,
+    "gpu_device": 0,
+    "seed": 1337,
+    "image_size": 256,
+    "no_of_shots": 5,
+    "num_ways": 2,
+    "num_classes": 2,
+    "batch_size": 64,
+    "learning_rate": 0.001,
+    "momentum": 0.5,
+    "weight_decay": 0,
+    "max_epoch": 15,
+    "log_interval": 16,
+    "validate_every": 2,
+    "data_loader": "BalancedFinetuneDataLoader",
+    "data_loader_workers": 0,
+    "pin_memory": true,
+    "async_loading": true,
+    "data_mode": "imgs",
+    "datasets_root_dir": "./data/",
+    "source_domain": "chestxray_kaggle",
+    "target_domain": "DeepCovid"
+  }
+
+  

@@ -1,0 +1,11 @@
+*.pyc
+*.jpg
+*.png
+*.csv
+data/
+experiments/
+.DS_store
+.keep
+model_repo/
+tuned_model_repo/
+agents/__pycache__/__init__.cpython-36.pyc

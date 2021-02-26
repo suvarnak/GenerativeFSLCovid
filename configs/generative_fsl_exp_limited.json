@@ -1,0 +1,33 @@
+{
+  "exp_name": "generative_fsl_exp_limited",
+  "agent": "GenerativeFSLGeneratorAgent",
+  "mode": "train",
+
+  "cuda": true,
+  "gpu_device": 0,
+  "seed": 1337,
+  "image_size":224,
+  "batch_size": 4,
+  "learning_rate": 0.001,
+	"momentum": 0.5,
+  "weight_decay": 0,
+  
+	"max_epoch": 2,
+	"log_interval": 5,
+  "validate_every":2,
+
+	"checkpoint_dir": "checkpoints",
+  "checkpoint_file": "gen_checkpoint.pth.tar",
+
+  "data_loader": "GenerativeFSLDataLoader",
+  "data_loader_workers": 2,
+  "pin_memory": true,
+  "async_loading": true,
+
+  "data_mode": "imgs",
+  "datasets_root_dir": "./data/generative_fsl/datasets/",
+  "generator_datasets_root_dir": "./data/generative_fsl/generative_datasets/",
+  "data_spec_folder": "./data/generative_fsl/dataset_specs",
+	"data_domains": "src_dataset",
+  "domains_img_dir": {"mini_imagenet":"images","aircraft":"data/images","CUB_200_2011":"images","omniglot":"images/Sanskrit"}
+}	

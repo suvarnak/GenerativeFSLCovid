@@ -1,0 +1,15 @@
+{
+    "exp_name": "dataset_stats",
+  
+    "cuda": false,
+    "gpu_device": 0,
+    "seed": 1337,
+    
+    "data_mode": "imgs",
+    "datasets_root_dir": "./data/",
+    "generator_datasets_root_dir": "./data/source_train",
+    "data_domains": "chestxray_kaggle",
+    "domains_img_dir": {"chestxray_kaggle":"train"}
+
+  }	
+  
