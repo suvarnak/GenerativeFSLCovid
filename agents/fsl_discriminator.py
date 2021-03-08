@@ -83,15 +83,15 @@ class FSLDiscriminatorAgent(BaseAgent):
         self.current_epoch = 0
         self.current_iteration = 0
         self.best_metric = 0
-        self.best_valid_loss = 0
+        self.best_train_loss = 999999999999
         self.fixed_noise = Variable(torch.randn(
             self.config.batch_size, 3, self.config.image_size, self.config.image_size))
         # Summary Writer
         self.summary_writer = SummaryWriter(
-            log_dir=self.config.summary_dir, comment='FinetuneFSL')
+            log_dir=self.config.summary_dir, comment='GenerativeFSL Covid Prediction')
 
 
-    def save_checkpoint(self, filename='finetuned_checkpoint.pth.tar', is_best=False):
+    def save_checkpoint(self, filename='discriminator_checkpoint.pth.tar', is_best=False):
         """
         Saving the latest checkpoint of the training
         :param filename: filename which will contain the state
@@ -122,7 +122,7 @@ class FSLDiscriminatorAgent(BaseAgent):
         # If it is the best copy it to another file 'model_best.pth.tar'
         if is_best:
             shutil.copyfile(self.config.checkpoint_dir + domain_checkpoint_file,
-                            self.config.checkpoint_dir + 'targetmodel_best.pth.tar')
+                        self.config.checkpoint_dir + 'BestModel_' + str(state['epoch']) + domain_checkpoint_file)
 
     def load_checkpoint(self, filename):
         filename = self.config.checkpoint_dir + filename
@@ -178,7 +178,7 @@ class FSLDiscriminatorAgent(BaseAgent):
     def load_model(self, domain_name):
         try:
             self.logger.info(
-                "*Loading  finetuned model  for domain '{}' for testing only".format(domain_name))
+                "*Loading  trained generative FSL model  for domain '{}' for testing only".format(domain_name))
             filename = os.path.join(
                 "tuned_model_repo", self.config.tuned_model_name)
             checkpoint = torch.load(filename)
@@ -203,20 +203,20 @@ class FSLDiscriminatorAgent(BaseAgent):
             if self.config.mode == 'test':
                 self.validate_target_domain()
             else:
-                self.finetune_target_domain()
+                self.train_target_domain()
 
         except KeyboardInterrupt:
             self.logger.info("You have entered CTRL+C.. Wait to finalize")
 
-    def finetune_target_domain(self):
+    def train_target_domain(self):
         """
         This function will the operator
         :return:
         """
         domain_name = self.config.target_domain
-        self.finetune_model(domain_name)
+        self.train_model(domain_name)
 
-    def finetune_model(self, domain_name):
+    def train_model(self, domain_name):
         self.logger.info(
             "Fine-tuning.....Target {}, Source {} ".format(domain_name, self.config.source_domain))
         try:
@@ -263,7 +263,7 @@ class FSLDiscriminatorAgent(BaseAgent):
             3, self.config.image_size, self.config.image_size))
         # weight=class_weights)  # MSELoss()#BCE_KLDLoss(self.model)
         self.criterion = nn.CrossEntropyLoss()
-        self.logger.info("Finetuning the generative models for {} domain".format(domain_name))
+        self.logger.info("Training linear layers for generative FSL in {} domain".format(domain_name))
 				# Model Loading from the latest checkpoint if not found start from scratch.
         domain_checkpoint_file = domain_name + self.config.checkpoint_file
         self.logger.info("LOADING {}....................".format(domain_checkpoint_file))
@@ -271,11 +271,11 @@ class FSLDiscriminatorAgent(BaseAgent):
         self.load_checkpoint(domain_checkpoint_file )
         for epoch in range(self.current_epoch, self.current_epoch+self.config.max_epoch):
             self.current_epoch = epoch
-            self.train_one_epoch(domain_name)
-            _,valid_loss = self.validate()
-            is_best = valid_loss > self.best_valid_loss
+            train_loss = self.train_one_epoch(domain_name)
+            #_,valid_loss = self.validate()
+            is_best = train_loss < self.best_train_loss
             if is_best:
-                self.best_valid_loss = valid_loss
+                self.best_train_loss = train_loss
             self.save_checkpoint(is_best=is_best)
 
     def train_one_epoch(self, domain_name):
@@ -298,18 +298,18 @@ class FSLDiscriminatorAgent(BaseAgent):
             epoch_lossD.update(loss.item())
             self.logger.info(batch_idx)
             if batch_idx % self.config.log_interval == 0:
-                self.logger.info('Finetune Epoch: {} [{}/{} ({:.0f}%)] Loss: {:6f}'.format(
-                    self.current_epoch, batch_idx *
-                    len(data), len(self.data_loader.train_loader.dataset),
-                    100. * batch_idx / len(self.data_loader.train_loader.dataset), loss.item()))
+                self.logger.info('Last Layers Training Epoch: {} [{}/{} ({:.0f}%)] Loss: {:6f}'.format(
+                    self.current_epoch, batch_idx * self.config.batch_size, len(self.data_loader.train_loader.dataset),
+                    100. * (batch_idx * self.config.batch_size / len(self.data_loader.train_loader.dataset)), loss.item()))
             self.current_iteration += 1
             self.summary_writer.add_scalar(
-                "epoch/Finetune_Training_Loss_"+domain_name, epoch_lossD.val, self.current_iteration)
+                "epoch/Training_Loss_"+domain_name, epoch_lossD.val, self.current_iteration)
 
         # self.visualize_one_epoch()
 
-        self.logger.info("Finetuning at epoch-" + str(self.current_epoch) +
-                         " | " + " - Finetuning Loss-: " + str(epoch_lossD.val))
+        self.logger.info("Training linear layers at epoch-" + str(self.current_epoch) +
+                         " | " + " - Training Loss-: " + str(epoch_lossD.val))
+        return epoch_lossD.val
 
     def visualize_one_epoch(self):
         """

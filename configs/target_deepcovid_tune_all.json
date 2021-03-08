@@ -1,5 +1,5 @@
 {
-  "exp_name": "exp_finetune_march7_1_all_deepcovid",
+  "exp_name": "exp_finetune_march8_all_deepcovid",
   "agent": "FSLDiscriminatorAgent",
   "mode": "train",
   "cuda": true,
