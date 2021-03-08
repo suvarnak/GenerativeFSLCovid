@@ -19,9 +19,12 @@
     "pin_memory": true,
     "async_loading": true,
     "data_mode": "imgs",
-    "tuned_model_name": "finetuned_balanced_all.pth.tar",
-    "results_file_name": "deepcovid_balancedallshots.csv",
+    "tuned_model_name": "14DeepCovid_finetuned_balanced_all.pth.tar",
+    "results_file_name": "deepcovid_balancedallshots_march5.csv",
     "datasets_root_dir": "./data/",
     "source_domain": "chestxray_kaggle",
-    "target_domain": "DeepCovid"
+    "target_domain": "DeepCovid",
+    "thresholding": true,
+    "ch_mean": [0.485, 0.456, 0.406],
+    "ch_std_dev": [0.229, 0.224, 0.225]
   }

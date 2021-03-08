@@ -19,12 +19,15 @@ class ReshapeTransform:
 
 
 class TargetDataLoader():
-    def __init__(self, config):
+    def __init__(self, config, domain_name=""):
         """
         :param config:
         """
         self.config = config
-        self.domain_name = config.target_domain
+        if domain_name != "":
+            self.domain_name = domain_name
+        else:
+            self.domain_name = config.target_domain
         if config.data_mode == "imgs":
             img_root_folder = config.datasets_root_dir
             generative_fsl_train_transforms = transforms.Compose([

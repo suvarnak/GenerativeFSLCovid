@@ -3,16 +3,19 @@ Generative FSL  Main agent for generating the background knowledge
 """
 import csv
 import os
+import sys
 import random
 import shutil
 
 import numpy as np
 import sklearn
+import sklearn.metrics
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
 from datasets.balanced_target_data_loader import BalancedTargetDataLoader
 from datasets.target_data_loader import TargetDataLoader
+from graphs.models.concept_discriminator import EncoderModel
 from graphs.models.generative_fsl_cae_model import GenerativeFSL_CAEModel
 from tensorboardX import SummaryWriter
 from torch import nn
@@ -31,7 +34,7 @@ from agents.base import BaseAgent
 cudnn.benchmark = True
 
 
-class RandomShotsFSLDiscriminatorAgent(BaseAgent):
+class RandomFSLDiscriminatorAgent(BaseAgent):
     def __init__(self, config):
         super().__init__(config)
         print(torch.__version__)
@@ -81,7 +84,7 @@ class RandomShotsFSLDiscriminatorAgent(BaseAgent):
         self.current_epoch = 0
         self.current_iteration = 0
         self.best_metric = 0
-        self.best_valid_loss = 0
+        self.best_valid_loss = sys.maxsize
         self.fixed_noise = Variable(torch.randn(
             self.config.batch_size, 3, self.config.image_size, self.config.image_size))
         # Summary Writer
@@ -96,7 +99,7 @@ class RandomShotsFSLDiscriminatorAgent(BaseAgent):
         :param is_best: flag is it is the best model
         :return:
         """
-        domain_checkpoint_file = self.config.target_domain + self.config.checkpoint_file
+        domain_checkpoint_file = filename
         state = {
             'epoch': self.current_epoch,
             'iteration': self.current_iteration,
@@ -120,7 +123,7 @@ class RandomShotsFSLDiscriminatorAgent(BaseAgent):
         # If it is the best copy it to another file 'model_best.pth.tar'
         if is_best:
             shutil.copyfile(self.config.checkpoint_dir + domain_checkpoint_file,
-                            self.config.checkpoint_dir + 'targetmodel_best.pth.tar')
+                            self.config.checkpoint_dir + 'Best_'+ domain_checkpoint_file )
 
     def load_checkpoint(self, filename):
         filename = self.config.checkpoint_dir + filename
@@ -189,7 +192,7 @@ class RandomShotsFSLDiscriminatorAgent(BaseAgent):
             return True
         except OSError as e:
             self.logger.info(
-                "No model checkpoint exists for source domain {}. Skipping...".format(domain_name))
+                "No model checkpoint exists for target domain {}. Skipping...".format(domain_name))
             return False
 
     def run(self):
@@ -212,18 +215,17 @@ class RandomShotsFSLDiscriminatorAgent(BaseAgent):
         :return:
         """
         domain_name = self.config.target_domain
-        shots_per_run = self.config.no_of_shots
-        no_of_runs = self.config.random_runs
-        for i in range(no_of_runs):
-            self.config.domain_name = domain_name + '_' + str(shots_per_run) + '_' + str(i)
-            self.finetune_model(self.config.domain_name)
+        for i in range(0,10):
+            domain_name = self.config.target_domain + "_" + str(i)
+            print(domain_name)
+            self.finetune_model(domain_name)
 
     def finetune_model(self, domain_name):
         self.logger.info(
             "Fine-tuning.....Target {}, Source {} ".format(domain_name, self.config.source_domain))
         try:
             if self.load_source_model():
-                self.data_loader = TargetDataLoader(config=self.config)
+                self.data_loader = TargetDataLoader(config=self.config, domain_name=domain_name)
                 self.train(domain_name)
         except KeyboardInterrupt:
             self.logger.info("You have entered CTRL+C.. Wait to finalize")
@@ -238,11 +240,11 @@ class RandomShotsFSLDiscriminatorAgent(BaseAgent):
 
     def test_model(self, domain_name):
         self.logger.info(
-            "Testing.....Target {}, Source {} ".format(domain_name, self.config.source_domain))
+            "Testing.....Source {}, Target {} ".format(domain_name, self.config.target_domain))
         try:
-            if self.load_model(domain_name):
+            if self.load_model(self.config.target_domain):
                 self.data_loader = TargetDataLoader(config=self.config)
-                with open(self.config.results_file_name, mode='w') as csv_file:
+                with open(self.config.results_file_name, mode='a+') as csv_file:
                     fieldnames = ['Threshold','Confusion_Matrix', 'Sensitivity', 'Specificity', 'F1', 'Accuracy']
                     writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
                     writer.writeheader()
@@ -250,12 +252,24 @@ class RandomShotsFSLDiscriminatorAgent(BaseAgent):
                         row,_ = self.validate(0.5)
                         writer.writerow(row)
                     else:
-                        for threshold in np.linspace(0,1,10):
-                            row,_ = self.validate(threshold)
+                        for i in np.linspace(0,1,11):
+                            row,_ = self.validate(threshold=i)
                             writer.writerow(row)
                     csv_file.close()
         except KeyboardInterrupt:
             self.logger.info("You have entered CTRL+C.. Wait to finalize")
+
+    def save_validate(self, domain_name):
+        self.logger.info("RANDOM validation step  for {} domain".format(domain_name))
+        with open(domain_name+".csv", mode='a+') as csv_file:
+            fieldnames = ['Threshold','Confusion_Matrix', 'Sensitivity', 'Specificity', 'F1', 'Accuracy']
+            writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+            writer.writeheader()
+            for threshold in [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]:
+                row,valid_loss = self.validate(threshold=threshold)
+                writer.writerow(row)
+            csv_file.close()
+            return row,valid_loss
 
     def train(self, domain_name):
         """
@@ -269,16 +283,19 @@ class RandomShotsFSLDiscriminatorAgent(BaseAgent):
 				# Model Loading from the latest checkpoint if not found start from scratch.
         domain_checkpoint_file = domain_name + self.config.checkpoint_file
         self.logger.info("LOADING {}....................".format(domain_checkpoint_file))
-
+        #self.best_valid_loss = sys.maxsize
         self.load_checkpoint(domain_checkpoint_file )
         for epoch in range(self.current_epoch, self.current_epoch+self.config.max_epoch):
             self.current_epoch = epoch
             self.train_one_epoch(domain_name)
-            _,valid_loss = self.validate()
-            is_best = valid_loss > self.best_valid_loss
-            if is_best:
-                self.best_valid_loss = valid_loss
-            self.save_checkpoint(is_best=is_best)
+            # _,valid_loss = self.validate(0.5)
+            # is_best = valid_loss < self.best_valid_loss
+            # self.logger.info("Best validation loss {} for epoch {} ".format(self.best_valid_loss,epoch))
+            # if is_best:
+            #     self.best_valid_loss = valid_loss
+            #     self.save_checkpoint(filename=domain_checkpoint_file,is_best=is_best)
+        self.save_checkpoint(filename=domain_checkpoint_file,is_best=False)
+        #_,valid_loss = self.save_validate(domain_name)
 
     def train_one_epoch(self, domain_name):
         """
@@ -366,7 +383,7 @@ class RandomShotsFSLDiscriminatorAgent(BaseAgent):
                 labels_list = [element.item() for element in labels.flatten()]
                 y_true_batch = labels_list
                 output = self.model(images)  # [B,2]
-                print("Batch idx{} and size{}".format(batch_idx,len(labels_list)))
+                #print("Batch idx{} and size{}".format(batch_idx,len(labels_list)))
                 #print(output)
                 # converting the output layer values into labels 0 or one based on threshold
                 sm = torch.nn.Softmax(1) # constrained probabilitites
@@ -386,10 +403,10 @@ class RandomShotsFSLDiscriminatorAgent(BaseAgent):
                 #if batch_idx == 0 :
                 #    break
         #print(len(y_true),"%%%%",len(y_pred))
-        print("Threshold",threshold)
+        #print("Threshold",threshold)
         tn, fp, fn, tp  = sklearn.metrics.confusion_matrix(y_true,y_pred).ravel()
         cf = sklearn.metrics.confusion_matrix(y_true, y_pred)
-        print("CF", cf)        
+        #print("CF", cf)        
         #print("confusion matrix ",tn,fp,fn,tp)
         sensitivity = tp/(tp+fn)
         specificity = tn/(tn+fp)
@@ -413,7 +430,7 @@ class RandomShotsFSLDiscriminatorAgent(BaseAgent):
         #    100. * acc))
         #fieldnames = ['threhhold', 'Sensitivity', 'Specificity', 'F1', 'Accuracy']
         results = {'Threshold':threshold, 'Confusion_Matrix':cf,'Sensitivity':sensitivity, 'Specificity':specificity, 'F1':f1, 'Accuracy':acc} 
-        
+        print("Results {} for domain".format(results))
         #"" + str(threshold) +"," + str(r) +"," + str(p) +"," + str(f1) +"," + str(acc)
         return results,test_loss
         

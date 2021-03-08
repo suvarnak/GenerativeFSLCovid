@@ -1,5 +1,5 @@
 {
-  "exp_name": "exp_src_model",
+  "exp_name": "exp_src_march4_model",
   "agent": "GenerativeFSLGeneratorAgent",
   "mode": "train",
   "cuda": true,
@@ -23,6 +23,6 @@
   "datasets_root_dir": "./data/",
   "generator_datasets_root_dir": "./data/source_train/",
   "source_domains": "chestxray_kaggle",
-  "ch_mean": [0.5, 0.5, 0.5],
-  "ch_std_dev": [0.5, 0.5, 0.5]
+  "ch_mean": [0.485, 0.456, 0.406],
+  "ch_std_dev": [0.229, 0.224, 0.225]
 }

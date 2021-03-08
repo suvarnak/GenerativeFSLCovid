@@ -240,7 +240,7 @@ class FSLDiscriminatorAgent(BaseAgent):
         try:
             if self.load_model(self.config.target_domain):
                 self.data_loader = TargetDataLoader(config=self.config)
-                with open(self.config.results_file_name, mode='w') as csv_file:
+                with open(self.config.results_file_name, mode='a+') as csv_file:
                     fieldnames = ['Threshold','Confusion_Matrix', 'Sensitivity', 'Specificity', 'F1', 'Accuracy']
                     writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
                     writer.writeheader()
@@ -248,7 +248,7 @@ class FSLDiscriminatorAgent(BaseAgent):
                         row,_ = self.validate(0.5)
                         writer.writerow(row)
                     else:
-                        for threshold in np.linspace(0,1,10):
+                        for threshold in np.linspace(0.1,0.9,9):
                             row,_ = self.validate(threshold)
                             writer.writerow(row)
                     csv_file.close()
@@ -296,6 +296,7 @@ class FSLDiscriminatorAgent(BaseAgent):
             # update model weights
             self.optimizer.step()
             epoch_lossD.update(loss.item())
+            self.logger.info(batch_idx)
             if batch_idx % self.config.log_interval == 0:
                 self.logger.info('Finetune Epoch: {} [{}/{} ({:.0f}%)] Loss: {:6f}'.format(
                     self.current_epoch, batch_idx *
