@@ -3,7 +3,7 @@
 
 ### Steps
 
-* Dowload and save dataset in data/ folder
+* Dowload and save dataset from https://github.com/shervinmin/DeepCovid in data/ folder
 * Train source generative model 
 
 `python3 main.py configs/src_chestxray.json`
