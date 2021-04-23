@@ -1,3 +1,7 @@
+### Code for our paper on applying generative FSL for Covid  prediction. 
+
+Please feel free to use for any humanatarian application. Please cite this repository if you decide to use. You can find the preprint of the paper on https://www.researchgate.net/publication/351021021_Generative_Transfer_Learning_from_Few_Shots_Attempting_Covid-19_Classification_with_few_Chest_X-ray_Images
+
 
 ## Train custom source generative model 
 
