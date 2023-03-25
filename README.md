@@ -28,3 +28,4 @@ Please feel free to use for any humanatarian application. Please cite this repos
 `python3 -m utils.random_training_splits` 
 
 
+![Source model with improved generation per epoch](./generatedChestXray.gif "Generating Check Xray")
