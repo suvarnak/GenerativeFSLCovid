@@ -26,3 +26,5 @@ Please feel free to use for any humanatarian application. Please cite this repos
 ### Creating random splits of k-shots of target dataset
 
 `python3 -m utils.random_training_splits` 
+
+
